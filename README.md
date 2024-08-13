@@ -18,3 +18,5 @@
 4. E em outro terminal rode o comando `npm run android ou npx react-native run android`
 
 Após esses passo seu PC contendo as env necessárias para rodar um projeto React Native o emulador android será aberto e instalado a aplicação.
+
+OBS: Não criei uma .env para a KEY do google maps para fins de testes. Mas essa mesma key logo mais irei inativar e ai sim ter a .env.
