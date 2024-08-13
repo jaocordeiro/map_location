@@ -1,11 +1,5 @@
 import React, {useEffect, useState, useRef} from 'react';
-import {
-  Platform,
-  PermissionsAndroid,
-  Dimensions,
-  TouchableOpacity,
-  Text,
-} from 'react-native';
+import {Platform, PermissionsAndroid, Dimensions, Alert} from 'react-native';
 import {
   Container,
   StyledMapView,
@@ -13,25 +7,34 @@ import {
   GooglePlacesDestinationView,
   ClearInputAddress,
   ClearInputAddressText,
-  AddAddress,
-  AddAddressText,
 } from './styles';
-import {Marker, PROVIDER_GOOGLE} from 'react-native-maps';
+import MapView, {Marker, PROVIDER_GOOGLE, Region} from 'react-native-maps';
 import Geolocation from '@react-native-community/geolocation';
-import {GooglePlacesAutocomplete} from 'react-native-google-places-autocomplete';
+import {
+  GooglePlacesAutocomplete,
+  GooglePlacesAutocompleteRef,
+} from 'react-native-google-places-autocomplete';
 import MapViewDirections from 'react-native-maps-directions';
 import {GOOGLE_MAPS_API_KEY} from '../../constants/index';
+import {Coordinates} from '../../../types/types';
+import Button from '../../components/Button';
 
 const {width, height} = Dimensions.get('screen');
 
 export function Home() {
-  const [locationDevice, setLocationDevice] = useState(null);
+  const [locationDevice, setLocationDevice] = useState<Coordinates | null>(
+    null,
+  );
   const [showGoogleAutocomplete, setShowGoogleAutocomplete] = useState(false);
-  const [origin, setOrigin] = useState();
-  const [destination, setDestination] = useState();
-  const mapRef = useRef(null);
-  const originRef = useRef(null);
-  const destinationRef = useRef(null);
+  const [origin, setOrigin] = useState<Coordinates | null>();
+  const [destination, setDestination] = useState<Coordinates | null>();
+  const [currentLocation, setCurrentLocation] = useState<Coordinates | null>(
+    null,
+  );
+  const [routeCoords, setRouteCoords] = useState<Coordinates[]>([]);
+  const mapRef = useRef<MapView>(null);
+  const originRef = useRef<GooglePlacesAutocompleteRef>(null);
+  const destinationRef = useRef<GooglePlacesAutocompleteRef>(null);
 
   async function requestLocationPermission() {
     try {
@@ -57,17 +60,14 @@ export function Home() {
 
   async function getLocationDevide() {
     const resp = await requestLocationPermission();
-    console.log('resp', resp);
-
     if (resp) {
       Geolocation.getCurrentPosition(
         position => {
-          const cords = {
+          const cords: Coordinates = {
             latitude: position.coords.latitude,
             longitude: position.coords.longitude,
           };
           setLocationDevice(cords);
-          console.log('cords', cords);
         },
         error => {
           console.error('Erro ao obter localização:', error);
@@ -81,20 +81,19 @@ export function Home() {
     }
   }
 
-  function handlePress() {
+  function handleAddAddress() {
     setShowGoogleAutocomplete(prevState => !prevState);
   }
 
-  async function moveToLocation(coords) {
-    mapRef?.current?.animateToRegion(
-      {
-        latitude: coords.latitude,
-        longitude: coords.longitude,
-        latitudeDelta: 0.009,
-        longitudeDelta: 0.009,
-      },
-      2000,
-    );
+  async function moveToLocation(coords: Coordinates) {
+    const region: Region = {
+      latitude: coords.latitude,
+      longitude: coords.longitude,
+      latitudeDelta: 0.0155,
+      longitudeDelta: 0.0155,
+    };
+
+    mapRef.current?.animateToRegion(region, 2000);
   }
 
   function clearInput(type: string) {
@@ -110,6 +109,36 @@ export function Home() {
   useEffect(() => {
     getLocationDevide();
   }, []);
+
+  function startRoute() {
+    let index = 0;
+    const interval = setInterval(() => {
+      if (index < routeCoords.length) {
+        const nextCoord = routeCoords[index];
+        setCurrentLocation(nextCoord);
+        mapRef?.current?.animateCamera({
+          center: nextCoord,
+          zoom: 16,
+        });
+        index++;
+      } else {
+        clearInterval(interval);
+        setOrigin(null);
+        setDestination(null);
+        setRouteCoords([]);
+        successYouArrivedYour();
+      }
+    }, 1000);
+  }
+
+  function successYouArrivedYour() {
+    Alert.alert(
+      'Sucesso',
+      'Você chegou a seu destino!',
+      [{text: 'Ok', onPress: () => {}}],
+      {cancelable: true},
+    );
+  }
 
   return (
     <Container>
@@ -136,7 +165,6 @@ export function Home() {
                   latitude: details?.geometry?.location.lat,
                   longitude: details?.geometry?.location.lng,
                 };
-                console.log('originCoordinates', originCoordinates);
                 moveToLocation(originCoordinates);
                 setOrigin(originCoordinates);
               }}
@@ -164,11 +192,10 @@ export function Home() {
               ref={destinationRef}
               placeholder="Destino"
               onPress={(data, details = null) => {
-                let destinationCoordinates = {
+                let destinationCoordinates: Coordinates = {
                   latitude: details?.geometry?.location.lat,
                   longitude: details?.geometry?.location.lng,
                 };
-                console.log('destinationCoordinates', destinationCoordinates);
                 moveToLocation(destinationCoordinates);
                 setDestination(destinationCoordinates);
               }}
@@ -195,6 +222,7 @@ export function Home() {
           provider={PROVIDER_GOOGLE}
           style={{width, height}}
           pointerEvents="box-none">
+          {currentLocation && <Marker coordinate={currentLocation} />}
           {origin ? <Marker coordinate={origin} /> : null}
           {destination ? <Marker coordinate={destination} /> : null}
           {origin && destination ? (
@@ -204,13 +232,25 @@ export function Home() {
               apikey={GOOGLE_MAPS_API_KEY}
               strokeColor="blue"
               strokeWidth={3}
+              onReady={result => {
+                setRouteCoords(result?.coordinates);
+              }}
             />
           ) : null}
         </StyledMapView>
       )}
-      <AddAddress onPress={handlePress}>
-        <AddAddressText>+</AddAddressText>
-      </AddAddress>
+      {origin && destination && (
+        <Button
+          style={{backgroundColor: 'green'}}
+          title="Iniciar"
+          handleAction={startRoute}
+        />
+      )}
+      <Button
+        style={{backgroundColor: 'blue'}}
+        title="+"
+        handleAction={handleAddAddress}
+      />
     </Container>
   );
 }

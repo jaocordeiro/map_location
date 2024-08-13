@@ -4,7 +4,7 @@ import MapView from 'react-native-maps';
 
 export const Container = styled.SafeAreaView`
   align-items: flex-end;
-  background: black;
+  background: white;
 `;
 
 export const StyledMapView = styled(MapView)`
@@ -36,23 +36,4 @@ export const ClearInputAddress = styled.TouchableOpacity`
 export const ClearInputAddressText = styled.Text`
   color: #000;
   font-size: 16px;
-  /* margin-top: 6%;
-  left: 10px; */
-`;
-
-export const AddAddress = styled.TouchableOpacity`
-  height: 40px;
-  width: 40px;
-  margin-right: 20px;
-  bottom: 150px;
-  background: blue;
-  border-radius: 30px;
-  justify-content: center;
-  align-items: center;
-  z-index: 1;
-`;
-
-export const AddAddressText = styled.Text`
-  color: white;
-  font-size: 22px;
 `;
